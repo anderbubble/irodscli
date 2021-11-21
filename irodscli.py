@@ -1,8 +1,6 @@
 #!/usr/bin/env python3
 
 # TODO
-# - change pwd to a collection?
-# - handle invalid collection
 # - handle ls of data object
 # - handle ls of glob
 # - rstrip /, restrict to collection
@@ -10,7 +8,6 @@
 # - implement ls -l
 # - pwd
 # - handle error parsing cli
-# - handle exception for invalid initial pwd
 # - readline
 
 
@@ -71,7 +68,11 @@ def main ():
         password=password,
         zone=zone
     ) as session:
-        pwd = previous_collection = initial_collection = session.collections.get(pathlib.PurePosixPath(url.path))
+        try:
+            pwd = previous_collection = initial_collection = session.collections.get(pathlib.PurePosixPath(url.path))
+        except irods.exception.CollectionDoesNotExist:
+            print('{}: collection does not exist: {}'.format(script_parser.prog, url.path), file=sys.stderr)
+            sys.exit()
         while True:
             try:
                 input_args = shlex.split(input(prompt(user, pwd.path)))
@@ -96,7 +97,7 @@ def cd (session, pwd, target, initial, previous):
     else:
         try:
             target_collection = session.collections.get(pathlib.PurePosixPath(pwd.path) / target)
-        except irods.exception.CollectionDoesNotExist as ex:
+        except irods.exception.CollectionDoesNotExist:
             print('cd: collection does not exist: {}'.format(target), file=sys.stderr)
             return None
         else:
@@ -110,7 +111,7 @@ def ls (session, pwd, targets, classify=False, sort=False):
     for target in targets:
         try:
             target_collections.append(session.collections.get(pathlib.PurePosixPath(pwd.path) / target))
-        except irods.exception.CollectionDoesNotExist as ex:
+        except irods.exception.CollectionDoesNotExist:
             print('ls: collection does not exist: {}'.format(target), file=sys.stderr)
             continue
     if not target_collections:
