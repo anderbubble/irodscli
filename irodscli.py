@@ -1,21 +1,32 @@
 #!/usr/bin/env python3
 
 # TODO
+# - change pwd to a collection?
 # - handle EOF
 # - handle invalid collection
 # - handle ls of data object
 # - handle ls of glob
+# - rstrip /, restrict to collection
+# - implement PurePosixPath.resolve()
+# - implement cd
+#   - cd
+#   - cd -
+# - implement ls -l
+# - pwd
+# - handle error parsing cli
 
 
 import argparse
 import getpass
 import irods.collection
 import irods.data_object
+import irods.exception
 import irods.session
 import itertools
 import os
 import pathlib
 import shlex
+import sys
 import urllib.parse
 
 
@@ -28,17 +39,20 @@ def main ():
 
     cli_parser = argparse.ArgumentParser(prog=None)
     cli_subparsers = cli_parser.add_subparsers(dest='command')
+
     ls_parser = cli_subparsers.add_parser('ls')
-    ls_parser.add_argument('paths', nargs='*', type=pathlib.PurePosixPath)
-    ls_parser.add_argument('--classify', action='store_true', default=False)
+    ls_parser.add_argument('targets', nargs='*', type=pathlib.PurePosixPath)
+    ls_parser.add_argument('-F', '--classify', action='store_true', default=False)
     ls_parser.add_argument('--sort', action='store_true', default=True)
-    ls_parser.add_argument('--no-sort', action='store_false', dest='sort')
+    ls_parser.add_argument('-f', '--no-sort', action='store_false', dest='sort')
+
+    cd_parser = cli_subparsers.add_parser('cd')
+    cd_parser.add_argument('path', nargs='?')
 
     script_args = script_parser.parse_args()
     url = urllib.parse.urlparse(script_args.url)
 
-    pwd = pathlib.PurePosixPath(url.path)
-    zone = pwd.parts[1]
+    zone = pathlib.PurePosixPath(url.path).parts[1]
 
     user = url.username
     if user is None:
@@ -57,29 +71,35 @@ def main ():
         password=password,
         zone=zone
     ) as session:
+        pwd = session.collections.get(pathlib.PurePosixPath(url.path))
         while True:
-            input_args = shlex.split(input(prompt(user, pwd)))
+            input_args = shlex.split(input(prompt(user, pwd.path)))
             cli_args = cli_parser.parse_args(input_args)
             if cli_args.command == 'ls':
                 header = None
                 first = True
-                paths = cli_args.paths
-                if not paths:
-                    paths.append('.')
-                for path in paths:
-                    if len(paths) > 1:
-                        header = path
-                    ls(session, pwd / path, classify=cli_args.classify, sort=cli_args.sort, header=header, first=first)
+                targets = []
+                for target in cli_args.targets:
+                    try:
+                        targets.append(session.collections.get(pathlib.PurePosixPath(pwd.path) / target))
+                    except irods.exception.CollectionDoesNotExist as ex:
+                        print('collection does not exist: {}'.format(target))
+                        continue
+                if not targets:
+                    targets.append(pwd)
+                for collection in targets:
+                    if len(targets) > 1:
+                        header = collection.path
+                    ls(session, collection, classify=cli_args.classify, sort=cli_args.sort, header=header, first=first)
                     first = False
 
 
-def ls (session, path, classify=False, sort=False, header=None, first=False):
+def ls (session, collection, classify=False, sort=False, header=None, first=False):
     if header is not None:
         if not first:
             print()
         print('{}:'.format(header))
-    coll = session.collections.get(path)
-    for each in iter_any(coll.subcollections, coll.data_objects, sort=sort):
+    for each in iter_any(collection.subcollections, collection.data_objects, sort=sort):
         print(format_any(each, classify=classify))
 
 
