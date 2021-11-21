@@ -5,7 +5,6 @@
 # - handle ls of glob
 # - rstrip /, restrict to collection
 # - implement ls -l
-# - handle error parsing cli
 # - readline
 
 
@@ -30,7 +29,7 @@ def main ():
     script_parser = argparse.ArgumentParser()
     script_parser.add_argument('url')
 
-    cli_parser = argparse.ArgumentParser(prog=None)
+    cli_parser = argparse.ArgumentParser(prog=None, exit_on_error=False)
     cli_subparsers = cli_parser.add_subparsers(dest='command')
 
     ls_parser = cli_subparsers.add_parser('ls')
@@ -77,8 +76,13 @@ def main ():
             try:
                 input_args = shlex.split(input(prompt(user, pwd.path)))
             except EOFError:
+                sys.stdout.write(os.linesep)
                 sys.exit()
-            cli_args = cli_parser.parse_args(input_args)
+            try:
+                cli_args = cli_parser.parse_args(input_args)
+            except argparse.ArgumentError:
+                print('unknown command: {}'.format(input_args[0]))
+                continue
             if cli_args.command == 'ls':
                 ls(session, pwd, cli_args.targets, classify=cli_args.classify, sort=cli_args.sort)
             elif cli_args.command == 'cd':
@@ -116,10 +120,10 @@ def ls (session, pwd, targets, classify=False, sort=False):
         except irods.exception.CollectionDoesNotExist:
             print('ls: collection does not exist: {}'.format(target), file=sys.stderr)
             continue
-    if not target_collections:
+    if not targets:
         target_collections.append(pwd)
     for collection in target_collections:
-        if len(target_collections) > 1:
+        if len(targets) > 1:
             header = collection.path
         ls_print_collection(session, collection, classify=classify, sort=sort, header=header, first=first)
         first = False
