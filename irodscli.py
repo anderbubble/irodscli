@@ -5,7 +5,6 @@
 # - handle ls of glob
 # - rstrip /, restrict to collection
 # - implement ls -l
-# - pwd
 # - handle error parsing cli
 # - readline
 
@@ -42,6 +41,8 @@ def main ():
 
     cd_parser = cli_subparsers.add_parser('cd')
     cd_parser.add_argument('target', nargs='?')
+
+    pwd_parser = cli_subparsers.add_parser('pwd')
 
     exit_parser = cli_subparsers.add_parser('exit')
 
@@ -84,6 +85,8 @@ def main ():
                 target_collection = cd(session, pwd, cli_args.target, initial_collection, previous_collection)
                 if target_collection is not None:
                     pwd, previous_collection = target_collection, pwd
+            elif cli_args.command == 'pwd':
+                print(pwd.path)
             elif cli_args.command == 'exit':
                 sys.exit()
 
