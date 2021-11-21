@@ -1,35 +1,48 @@
 #!/usr/bin/env python3
 
 # TODO
-# - combine host, zone, user, port, and path to a url
+# - format collection and data
+# - read path from url
 
 
 import argparse
 import getpass
 import irods.session
 import os
-#import urlparse
+import pathlib
+import urllib.parse
+
+
+DEFAULT_PORT = 1247
 
 
 def main ():
     parser = argparse.ArgumentParser()
-    parser.add_argument('host')
-    parser.add_argument('zone')
-    parser.add_argument('--port', default=1247)
-    parser.add_argument('--user', default=getpass.getuser())
+    parser.add_argument('url')
+
     args = parser.parse_args()
-    password = os.environ.get('IRODS_PASSWORD')
+    url = urllib.parse.urlparse(args.url)
+
+    zone = pathlib.Path(url.path).parts[1]
+    user = url.username
+    if user is None:
+        user = getpass.getuser()
+
+    password = url.password
+    if password is None:
+        password = os.environ.get('IRODS_PASSWORD')
     if password is None:
         password = getpass.getpass()
-    root = '/{}'.format(args.zone)
+
+    root = '/{}'.format(zone)
     with irods.session.iRODSSession(
-        host=args.host,
-        port=args.port,
-        user=args.user,
+        host=url.hostname,
+        port=url.port or DEFAULT_PORT,
+        user=user,
         password=password,
-        zone=args.zone
+        zone=zone
     ) as session:
-        workdir = [root, 'home', args.user]
+        workdir = [root, 'home', user]
         coll = session.collections.get('/'.join(workdir))
         print(coll.path)
         for subcoll in coll.subcollections:
