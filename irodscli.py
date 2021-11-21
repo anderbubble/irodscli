@@ -2,7 +2,6 @@
 
 # TODO
 # - change pwd to a collection?
-# - handle EOF
 # - handle invalid collection
 # - handle ls of data object
 # - handle ls of glob
@@ -12,7 +11,6 @@
 # - pwd
 # - handle error parsing cli
 # - handle exception for invalid initial pwd
-# - exit
 # - readline
 
 
@@ -49,6 +47,8 @@ def main ():
     cd_parser = cli_subparsers.add_parser('cd')
     cd_parser.add_argument('target', nargs='?')
 
+    exit_parser = cli_subparsers.add_parser('exit')
+
     script_args = script_parser.parse_args()
     url = urllib.parse.urlparse(script_args.url)
 
@@ -73,7 +73,10 @@ def main ():
     ) as session:
         pwd = previous_collection = initial_collection = session.collections.get(pathlib.PurePosixPath(url.path))
         while True:
-            input_args = shlex.split(input(prompt(user, pwd.path)))
+            try:
+                input_args = shlex.split(input(prompt(user, pwd.path)))
+            except EOFError:
+                sys.exit()
             cli_args = cli_parser.parse_args(input_args)
             if cli_args.command == 'ls':
                 ls(session, pwd, cli_args.targets, classify=cli_args.classify, sort=cli_args.sort)
@@ -81,6 +84,8 @@ def main ():
                 target_collection = cd(session, pwd, cli_args.target, initial_collection, previous_collection)
                 if target_collection is not None:
                     pwd, previous_collection = target_collection, pwd
+            elif cli_args.command == 'exit':
+                sys.exit()
 
 
 def cd (session, pwd, target, initial, previous):
