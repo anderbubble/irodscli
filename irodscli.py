@@ -14,6 +14,7 @@
 # - implement ls -l
 # - pwd
 # - handle error parsing cli
+# - handle exception for invalid initial pwd
 
 
 import argparse
@@ -76,25 +77,29 @@ def main ():
             input_args = shlex.split(input(prompt(user, pwd.path)))
             cli_args = cli_parser.parse_args(input_args)
             if cli_args.command == 'ls':
-                header = None
-                first = True
-                targets = []
-                for target in cli_args.targets:
-                    try:
-                        targets.append(session.collections.get(pathlib.PurePosixPath(pwd.path) / target))
-                    except irods.exception.CollectionDoesNotExist as ex:
-                        print('collection does not exist: {}'.format(target))
-                        continue
-                if not targets:
-                    targets.append(pwd)
-                for collection in targets:
-                    if len(targets) > 1:
-                        header = collection.path
-                    ls(session, collection, classify=cli_args.classify, sort=cli_args.sort, header=header, first=first)
-                    first = False
+                ls(session, cli_args.targets, pwd, classify=cli_args.classify, sort=cli_args.sort)
 
 
-def ls (session, collection, classify=False, sort=False, header=None, first=False):
+def ls (session, targets, pwd, classify=False, sort=False):
+    header = None
+    first = True
+    target_collections = []
+    for target in targets:
+        try:
+            target_collections.append(session.collections.get(pathlib.PurePosixPath(pwd.path) / target))
+        except irods.exception.CollectionDoesNotExist as ex:
+            print('ls: collection does not exist: {}'.format(target))
+            continue
+    if not target_collections:
+        target_collections.append(pwd)
+    for collection in target_collections:
+        if len(target_collections) > 1:
+            header = collection.path
+        ls_print_collection(session, collection, classify=classify, sort=sort, header=header, first=first)
+        first = False
+
+
+def ls_print_collection (session, collection, classify=False, sort=False, header=None, first=False):
     if header is not None:
         if not first:
             print()
