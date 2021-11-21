@@ -1,12 +1,5 @@
 #!/usr/bin/env python3
 
-# TODO
-# - handle ls of data object
-# - handle ls of glob
-# - rstrip /, restrict to collection
-# - implement ls -l
-# - readline
-
 
 import argparse
 import getpass
