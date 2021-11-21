@@ -8,13 +8,12 @@
 # - handle ls of glob
 # - rstrip /, restrict to collection
 # - implement PurePosixPath.resolve()
-# - implement cd
-#   - cd
-#   - cd -
 # - implement ls -l
 # - pwd
 # - handle error parsing cli
 # - handle exception for invalid initial pwd
+# - exit
+# - readline
 
 
 import argparse
@@ -48,7 +47,7 @@ def main ():
     ls_parser.add_argument('-f', '--no-sort', action='store_false', dest='sort')
 
     cd_parser = cli_subparsers.add_parser('cd')
-    cd_parser.add_argument('path', nargs='?')
+    cd_parser.add_argument('target', nargs='?')
 
     script_args = script_parser.parse_args()
     url = urllib.parse.urlparse(script_args.url)
@@ -72,15 +71,34 @@ def main ():
         password=password,
         zone=zone
     ) as session:
-        pwd = session.collections.get(pathlib.PurePosixPath(url.path))
+        pwd = previous_collection = initial_collection = session.collections.get(pathlib.PurePosixPath(url.path))
         while True:
             input_args = shlex.split(input(prompt(user, pwd.path)))
             cli_args = cli_parser.parse_args(input_args)
             if cli_args.command == 'ls':
-                ls(session, cli_args.targets, pwd, classify=cli_args.classify, sort=cli_args.sort)
+                ls(session, pwd, cli_args.targets, classify=cli_args.classify, sort=cli_args.sort)
+            elif cli_args.command == 'cd':
+                target_collection = cd(session, pwd, cli_args.target, initial_collection, previous_collection)
+                if target_collection is not None:
+                    pwd, previous_collection = target_collection, pwd
 
 
-def ls (session, targets, pwd, classify=False, sort=False):
+def cd (session, pwd, target, initial, previous):
+    if target is None:
+        return initial
+    elif target == '-':
+        return previous
+    else:
+        try:
+            target_collection = session.collections.get(pathlib.PurePosixPath(pwd.path) / target)
+        except irods.exception.CollectionDoesNotExist as ex:
+            print('cd: collection does not exist: {}'.format(target), file=sys.stderr)
+            return None
+        else:
+            return target_collection
+
+
+def ls (session, pwd, targets, classify=False, sort=False):
     header = None
     first = True
     target_collections = []
@@ -88,7 +106,7 @@ def ls (session, targets, pwd, classify=False, sort=False):
         try:
             target_collections.append(session.collections.get(pathlib.PurePosixPath(pwd.path) / target))
         except irods.exception.CollectionDoesNotExist as ex:
-            print('ls: collection does not exist: {}'.format(target))
+            print('ls: collection does not exist: {}'.format(target), file=sys.stderr)
             continue
     if not target_collections:
         target_collections.append(pwd)
