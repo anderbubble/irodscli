@@ -2,7 +2,6 @@
 
 # TODO
 # - format collection and data
-# - read path from url
 
 
 import argparse
@@ -34,7 +33,6 @@ def main ():
     if password is None:
         password = getpass.getpass()
 
-    root = '/{}'.format(zone)
     with irods.session.iRODSSession(
         host=url.hostname,
         port=url.port or DEFAULT_PORT,
@@ -42,9 +40,7 @@ def main ():
         password=password,
         zone=zone
     ) as session:
-        workdir = [root, 'home', user]
-        coll = session.collections.get('/'.join(workdir))
-        print(coll.path)
+        coll = session.collections.get(url.path)
         for subcoll in coll.subcollections:
             print(subcoll)
         for obj in coll.data_objects:
