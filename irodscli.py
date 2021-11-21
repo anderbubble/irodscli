@@ -4,7 +4,6 @@
 # - handle ls of data object
 # - handle ls of glob
 # - rstrip /, restrict to collection
-# - implement PurePosixPath.resolve()
 # - implement ls -l
 # - pwd
 # - handle error parsing cli
@@ -69,7 +68,7 @@ def main ():
         zone=zone
     ) as session:
         try:
-            pwd = previous_collection = initial_collection = session.collections.get(pathlib.PurePosixPath(url.path))
+            pwd = previous_collection = initial_collection = session.collections.get(resolve(pathlib.PurePosixPath(url.path)))
         except irods.exception.CollectionDoesNotExist:
             print('{}: collection does not exist: {}'.format(script_parser.prog, url.path), file=sys.stderr)
             sys.exit()
@@ -96,7 +95,7 @@ def cd (session, pwd, target, initial, previous):
         return previous
     else:
         try:
-            target_collection = session.collections.get(pathlib.PurePosixPath(pwd.path) / target)
+            target_collection = session.collections.get(resolve(pathlib.PurePosixPath(pwd.path) / target))
         except irods.exception.CollectionDoesNotExist:
             print('cd: collection does not exist: {}'.format(target), file=sys.stderr)
             return None
@@ -110,7 +109,7 @@ def ls (session, pwd, targets, classify=False, sort=False):
     target_collections = []
     for target in targets:
         try:
-            target_collections.append(session.collections.get(pathlib.PurePosixPath(pwd.path) / target))
+            target_collections.append(session.collections.get(resolve(pathlib.PurePosixPath(pwd.path) / target)))
         except irods.exception.CollectionDoesNotExist:
             print('ls: collection does not exist: {}'.format(target), file=sys.stderr)
             continue
@@ -160,6 +159,16 @@ def format_data_object (data_object):
 
 def prompt (user, path):
     return '{}@{}$ '.format(user, path)
+
+
+def resolve (path):
+    resolved_path = pathlib.PurePosixPath(path.parts[0])
+    for part in path.parts[1:]:
+        if part == '..':
+            resolved_path = resolved_path.parent
+        else:
+            resolved_path = resolved_path / part
+    return resolved_path
 
 
 if __name__ == '__main__':
