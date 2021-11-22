@@ -25,18 +25,22 @@ def main ():
     cli_parser = argparse.ArgumentParser(prog=None, exit_on_error=False)
     cli_subparsers = cli_parser.add_subparsers(dest='command')
 
-    ls_parser = cli_subparsers.add_parser('ls')
-    ls_parser.add_argument('targets', nargs='*', type=pathlib.PurePosixPath)
-    ls_parser.add_argument('-F', '--classify', action='store_true', default=False)
-    ls_parser.add_argument('--sort', action='store_true', default=True)
-    ls_parser.add_argument('-f', '--no-sort', action='store_false', dest='sort')
+    list_parser = cli_subparsers.add_parser('list', aliases=['ls', 'dir', 'coll'])
+    list_parser.add_argument('targets', nargs='*', type=pathlib.PurePosixPath)
+    list_parser.add_argument('-F', '--classify', action='store_true', default=False)
+    list_parser.add_argument('--sort', action='store_true', default=True)
+    list_parser.add_argument('-f', '--no-sort', action='store_false', dest='sort')
+    list_parser.set_defaults(canonical_command='list')
 
-    cd_parser = cli_subparsers.add_parser('cd')
-    cd_parser.add_argument('target', nargs='?')
+    ccoll_parser = cli_subparsers.add_parser('ccoll', aliases=['cd'])
+    ccoll_parser.add_argument('target', nargs='?')
+    ccoll_parser.set_defaults(canonical_command='ccoll')
 
-    pwd_parser = cli_subparsers.add_parser('pwd')
+    pwcoll_parser = cli_subparsers.add_parser('pwcoll', aliases=['pwd'])
+    pwcoll_parser.set_defaults(canonical_command='pwcoll')
 
     exit_parser = cli_subparsers.add_parser('exit')
+    exit_parser.set_defaults(canonical_command='exit')
 
     script_args = script_parser.parse_args()
     url = urllib.parse.urlparse(script_args.url)
@@ -61,13 +65,13 @@ def main ():
         zone=zone
     ) as session:
         try:
-            pwd = previous_collection = initial_collection = session.collections.get(resolve(pathlib.PurePosixPath(url.path)))
+            pwcoll = previous_collection = initial_collection = session.collections.get(resolve(pathlib.PurePosixPath(url.path)))
         except irods.exception.CollectionDoesNotExist:
             print('{}: collection does not exist: {}'.format(script_parser.prog, url.path), file=sys.stderr)
             sys.exit()
         while True:
             try:
-                input_args = shlex.split(input(prompt(user, pwd.path)))
+                input_args = shlex.split(input(prompt(user, pwcoll.path)))
             except EOFError:
                 sys.stdout.write(os.linesep)
                 sys.exit()
@@ -76,53 +80,53 @@ def main ():
             except argparse.ArgumentError:
                 print('unknown command: {}'.format(input_args[0]))
                 continue
-            if cli_args.command == 'ls':
-                ls(session, pwd, cli_args.targets, classify=cli_args.classify, sort=cli_args.sort)
-            elif cli_args.command == 'cd':
-                target_collection = cd(session, pwd, cli_args.target, initial_collection, previous_collection)
+            if cli_args.canonical_command == 'list':
+                list_(session, pwcoll, cli_args.targets, classify=cli_args.classify, sort=cli_args.sort)
+            elif cli_args.canonical_command == 'ccoll':
+                target_collection = ccoll(session, pwcoll, cli_args.target, initial_collection, previous_collection)
                 if target_collection is not None:
-                    pwd, previous_collection = target_collection, pwd
-            elif cli_args.command == 'pwd':
-                print(pwd.path)
-            elif cli_args.command == 'exit':
+                    pwcoll, previous_collection = target_collection, pwcoll
+            elif cli_args.canonical_command == 'pwcoll':
+                print(pwcoll.path)
+            elif cli_args.canonical_command == 'exit':
                 sys.exit()
 
 
-def cd (session, pwd, target, initial, previous):
+def ccoll (session, pwcoll, target, initial, previous):
     if target is None:
         return initial
     elif target == '-':
         return previous
     else:
         try:
-            target_collection = session.collections.get(resolve(pathlib.PurePosixPath(pwd.path) / target))
+            target_collection = session.collections.get(resolve(pathlib.PurePosixPath(pwcoll.path) / target))
         except irods.exception.CollectionDoesNotExist:
-            print('cd: collection does not exist: {}'.format(target), file=sys.stderr)
+            print('ccoll: collection does not exist: {}'.format(target), file=sys.stderr)
             return None
         else:
             return target_collection
 
 
-def ls (session, pwd, targets, classify=False, sort=False):
+def list_ (session, pwcoll, targets, classify=False, sort=False):
     header = None
     first = True
     target_collections = []
     for target in targets:
         try:
-            target_collections.append(session.collections.get(resolve(pathlib.PurePosixPath(pwd.path) / target)))
+            target_collections.append(session.collections.get(resolve(pathlib.PurePosixPath(pwcoll.path) / target)))
         except irods.exception.CollectionDoesNotExist:
-            print('ls: collection does not exist: {}'.format(target), file=sys.stderr)
+            print('list: collection does not exist: {}'.format(target), file=sys.stderr)
             continue
     if not targets:
-        target_collections.append(pwd)
+        target_collections.append(pwcoll)
     for collection in target_collections:
         if len(targets) > 1:
             header = collection.path
-        ls_print_collection(session, collection, classify=classify, sort=sort, header=header, first=first)
+        list_print_collection(session, collection, classify=classify, sort=sort, header=header, first=first)
         first = False
 
 
-def ls_print_collection (session, collection, classify=False, sort=False, header=None, first=False):
+def list_print_collection (session, collection, classify=False, sort=False, header=None, first=False):
     if header is not None:
         if not first:
             print()
