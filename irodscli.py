@@ -26,7 +26,7 @@ def main ():
     cli_subparsers = cli_parser.add_subparsers(dest='command')
 
     list_parser = cli_subparsers.add_parser('list', aliases=['ls', 'dir', 'coll'])
-    list_parser.add_argument('targets', nargs='*', type=pathlib.PurePosixPath)
+    list_parser.add_argument('targets', nargs='*')
     list_parser.add_argument('-F', '--classify', action='store_true', default=False)
     list_parser.add_argument('--sort', action='store_true', default=True)
     list_parser.add_argument('-f', '--no-sort', action='store_false', dest='sort')
@@ -38,6 +38,10 @@ def main ():
 
     pwcoll_parser = cli_subparsers.add_parser('pwcoll', aliases=['pwd'])
     pwcoll_parser.set_defaults(canonical_command='pwcoll')
+
+    stat_parser = cli_subparsers.add_parser('stat')
+    stat_parser.add_argument('targets', nargs='*')
+    stat_parser.set_defaults(canonical_command='stat')
 
     exit_parser = cli_subparsers.add_parser('exit')
     exit_parser.set_defaults(canonical_command='exit')
@@ -65,7 +69,7 @@ def main ():
         zone=zone
     ) as session:
         try:
-            pwcoll = previous_collection = initial_collection = session.collections.get(resolve(pathlib.PurePosixPath(url.path)))
+            pwcoll = previous_collection = initial_collection = session.collections.get(str(resolve(pathlib.PurePosixPath(url.path))))
         except irods.exception.CollectionDoesNotExist:
             print('{}: collection does not exist: {}'.format(script_parser.prog, url.path), file=sys.stderr)
             sys.exit()
@@ -90,6 +94,16 @@ def main ():
                 print(pwcoll.path)
             elif cli_args.canonical_command == 'exit':
                 sys.exit()
+            elif cli_args.canonical_command == 'stat':
+                stat(session, pwcoll, cli_args.targets)
+
+
+def stat (session, pwcoll, target_paths):
+    targets = []
+    for path in target_paths:
+        targets.append(path_to_collection_or_object(session, pwcoll, path))
+    for target in targets:
+        print(target)
 
 
 def ccoll (session, pwcoll, target, initial, previous):
@@ -99,7 +113,7 @@ def ccoll (session, pwcoll, target, initial, previous):
         return previous
     else:
         try:
-            target_collection = session.collections.get(resolve(pathlib.PurePosixPath(pwcoll.path) / target))
+            target_collection = session.collections.get(str(resolve(pathlib.PurePosixPath(pwcoll.path) / target)))
         except irods.exception.CollectionDoesNotExist:
             print('ccoll: collection does not exist: {}'.format(target), file=sys.stderr)
             return None
@@ -107,22 +121,46 @@ def ccoll (session, pwcoll, target, initial, previous):
             return target_collection
 
 
-def list_ (session, pwcoll, targets, classify=False, sort=False):
+def path_to_collection_or_object (session, pwcoll, path):
+    try:
+        return path_to_collection(session, pwcoll, path)
+    except irods.exception.CollectionDoesNotExist:
+        return path_to_data_object(session, pwcoll, path)
+
+
+def path_to_collection (session, pwcoll, path):
+    return session.collections.get(str(resolve(pathlib.PurePosixPath(pwcoll.path) / path)))
+
+
+def path_to_data_object (session, pwcoll, path):
+    return session.data_objects.get(str(resolve(pathlib.PurePosixPath(pwcoll.path) / path)))
+
+
+def list_ (session, pwcoll, target_paths, classify=False, sort=False):
     header = None
     first = True
-    target_collections = []
-    for target in targets:
+    target_colls = []
+    target_objects = []
+    target_object_paths = []
+    for path in target_paths:
         try:
-            target_collections.append(session.collections.get(resolve(pathlib.PurePosixPath(pwcoll.path) / target)))
+            target_colls.append(path_to_collection(session, pwcoll, path))
         except irods.exception.CollectionDoesNotExist:
-            print('list: collection does not exist: {}'.format(target), file=sys.stderr)
-            continue
-    if not targets:
-        target_collections.append(pwcoll)
-    for collection in target_collections:
-        if len(targets) > 1:
-            header = collection.path
-        list_print_collection(session, collection, classify=classify, sort=sort, header=header, first=first)
+            try:
+                target_objects.append(path_to_data_object(session, pwcoll, path))
+            except irods.exception.DataObjectDoesNotExist:
+                print('list: collection or data object does not exist: {}'.format(path), file=sys.stderr)
+                continue
+            else:
+                target_object_paths.append(path)
+    if not target_paths:
+        target_colls.append(pwcoll)
+    for data_object, data_object_path in zip(target_objects, target_object_paths):
+        print(data_object_path)
+    for coll in target_colls:
+        if len(target_paths) > 1:
+            header = coll.path
+        list_print_collection(session, coll, classify=classify, sort=sort, header=header, first=first)
         first = False
 
 
