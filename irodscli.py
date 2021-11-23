@@ -23,28 +23,28 @@ def main ():
     script_parser.add_argument('url')
 
     cli_parser = argparse.ArgumentParser(prog=None, exit_on_error=False)
-    cli_subparsers = cli_parser.add_subparsers(dest='command')
+    cli_subparsers = cli_parser.add_subparsers(dest='subcommand_alias')
 
     list_parser = cli_subparsers.add_parser('list', aliases=['ls', 'dir', 'coll'])
     list_parser.add_argument('targets', nargs='*')
     list_parser.add_argument('-F', '--classify', action='store_true', default=False)
     list_parser.add_argument('--sort', action='store_true', default=True)
     list_parser.add_argument('-f', '--no-sort', action='store_false', dest='sort')
-    list_parser.set_defaults(canonical_command='list')
+    list_parser.set_defaults(subcommand='list')
 
     ccoll_parser = cli_subparsers.add_parser('ccoll', aliases=['cd'])
     ccoll_parser.add_argument('target', nargs='?')
-    ccoll_parser.set_defaults(canonical_command='ccoll')
+    ccoll_parser.set_defaults(subcommand='ccoll')
 
     pwcoll_parser = cli_subparsers.add_parser('pwcoll', aliases=['pwd'])
-    pwcoll_parser.set_defaults(canonical_command='pwcoll')
+    pwcoll_parser.set_defaults(subcommand='pwcoll')
 
     stat_parser = cli_subparsers.add_parser('stat')
     stat_parser.add_argument('targets', nargs='*')
-    stat_parser.set_defaults(canonical_command='stat')
+    stat_parser.set_defaults(subcommand='stat')
 
     exit_parser = cli_subparsers.add_parser('exit')
-    exit_parser.set_defaults(canonical_command='exit')
+    exit_parser.set_defaults(subcommand='exit')
 
     script_args = script_parser.parse_args()
     url = urllib.parse.urlparse(script_args.url)
@@ -84,17 +84,17 @@ def main ():
             except argparse.ArgumentError:
                 print('unknown command: {}'.format(input_args[0]))
                 continue
-            if cli_args.canonical_command == 'list':
+            if cli_args.subcommand == 'list':
                 list_(session, pwcoll, cli_args.targets, classify=cli_args.classify, sort=cli_args.sort)
-            elif cli_args.canonical_command == 'ccoll':
+            elif cli_args.subcommand == 'ccoll':
                 target_collection = ccoll(session, pwcoll, cli_args.target, initial_collection, previous_collection)
                 if target_collection is not None:
                     pwcoll, previous_collection = target_collection, pwcoll
-            elif cli_args.canonical_command == 'pwcoll':
+            elif cli_args.subcommand == 'pwcoll':
                 print(pwcoll.path)
-            elif cli_args.canonical_command == 'exit':
+            elif cli_args.subcommand == 'exit':
                 sys.exit()
-            elif cli_args.canonical_command == 'stat':
+            elif cli_args.subcommand == 'stat':
                 stat(session, pwcoll, cli_args.targets)
 
 
@@ -103,7 +103,7 @@ def stat (session, pwcoll, target_paths):
     for path in target_paths:
         targets.append(path_to_collection_or_object(session, pwcoll, path))
     for target in targets:
-        print(target)
+        print_stat_any(target)
 
 
 def ccoll (session, pwcoll, target, initial, previous):
@@ -188,6 +188,28 @@ def format_any (something, classify=False):
         return format_data_object(something)
 
 
+def print_stat_any (something, classify=False):
+    if isinstance(something, irods.collection.iRODSCollection):
+        print_stat_collection(something)
+    elif isinstance(something, irods.data_object.iRODSDataObject):
+        return print_stat_data_object(something)
+
+
+def print_stat_collection (collection):
+    print('id: {}'.format(collection.id))
+    print('name: {}'.format(collection.name))
+    print('path: {}'.format(collection.path))
+    print('subcollections: {}'.format(len(collection.subcollections)))
+    print('metadata:')
+    for key, value in collection.metadata.items():
+        print('- {}: {}'.format(key, value))
+
+
+def print_stat_data_object (data_object):
+    print('id: {}'.format(data_object.id))
+    print(dir(data_object))
+
+
 def format_collection (collection, classify=False):
     if classify:
         return '{}/'.format(collection.name)
@@ -200,7 +222,10 @@ def format_data_object (data_object):
 
 
 def prompt (user, path):
-    return '{}@{}$ '.format(user, path)
+    if sys.stdin.isatty():
+        return '{}@{}$ '.format(user, path)
+    else:
+        return ''
 
 
 def resolve (path):
