@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 
-
 import argparse
 import getpass
 import irods.collection
@@ -25,25 +24,25 @@ def main ():
     cli_parser = argparse.ArgumentParser(prog=None, exit_on_error=False)
     cli_subparsers = cli_parser.add_subparsers(dest='subcommand_alias')
 
-    list_parser = cli_subparsers.add_parser('list', aliases=['ls', 'dir', 'coll'])
-    list_parser.add_argument('targets', nargs='*')
-    list_parser.add_argument('-F', '--classify', action='store_true', default=False)
-    list_parser.add_argument('--sort', action='store_true', default=True)
-    list_parser.add_argument('-f', '--no-sort', action='store_false', dest='sort')
-    list_parser.set_defaults(subcommand='list')
+    ls_parser = cli_subparsers.add_parser('ls', aliases=['ils'])
+    ls_parser.add_argument('targets', nargs='*')
+    ls_parser.add_argument('-F', '--classify', action='store_true', default=False)
+    ls_parser.add_argument('--sort', action='store_true', default=True)
+    ls_parser.add_argument('-f', '--no-sort', action='store_false', dest='sort')
+    ls_parser.set_defaults(subcommand='ls')
 
-    ccoll_parser = cli_subparsers.add_parser('ccoll', aliases=['cd'])
-    ccoll_parser.add_argument('target', nargs='?')
-    ccoll_parser.set_defaults(subcommand='ccoll')
+    cd_parser = cli_subparsers.add_parser('cd', aliases=['icd'])
+    cd_parser.add_argument('target', nargs='?')
+    cd_parser.set_defaults(subcommand='cd')
 
-    pwcoll_parser = cli_subparsers.add_parser('pwcoll', aliases=['pwd'])
-    pwcoll_parser.set_defaults(subcommand='pwcoll')
+    pwd_parser = cli_subparsers.add_parser('pwd', aliases=['ipwd'])
+    pwd_parser.set_defaults(subcommand='pwd')
 
-    stat_parser = cli_subparsers.add_parser('stat')
-    stat_parser.add_argument('targets', nargs='*')
-    stat_parser.set_defaults(subcommand='stat')
+    sysmeta_parser = cli_subparsers.add_parser('sysmeta', aliases=['isysmeta', 'stat'])
+    sysmeta_parser.add_argument('targets', nargs='*')
+    sysmeta_parser.set_defaults(subcommand='sysmeta')
 
-    exit_parser = cli_subparsers.add_parser('exit')
+    exit_parser = cli_subparsers.add_parser('exit', aliases=['iexit'])
     exit_parser.set_defaults(subcommand='exit')
 
     script_args = script_parser.parse_args()
@@ -84,29 +83,29 @@ def main ():
             except argparse.ArgumentError:
                 print('unknown command: {}'.format(input_args[0]))
                 continue
-            if cli_args.subcommand == 'list':
-                list_(session, pwcoll, cli_args.targets, classify=cli_args.classify, sort=cli_args.sort)
-            elif cli_args.subcommand == 'ccoll':
-                target_collection = ccoll(session, pwcoll, cli_args.target, initial_collection, previous_collection)
+            if cli_args.subcommand == 'ls':
+                ls(session, pwcoll, cli_args.targets, classify=cli_args.classify, sort=cli_args.sort)
+            elif cli_args.subcommand == 'cd':
+                target_collection = cd(session, pwcoll, cli_args.target, initial_collection, previous_collection)
                 if target_collection is not None:
                     pwcoll, previous_collection = target_collection, pwcoll
-            elif cli_args.subcommand == 'pwcoll':
+            elif cli_args.subcommand == 'pwd':
                 print(pwcoll.path)
             elif cli_args.subcommand == 'exit':
                 sys.exit()
-            elif cli_args.subcommand == 'stat':
-                stat(session, pwcoll, cli_args.targets)
+            elif cli_args.subcommand == 'sysmeta':
+                sysmeta(session, pwcoll, cli_args.targets)
 
 
-def stat (session, pwcoll, target_paths):
+def sysmeta (session, pwcoll, target_paths):
     targets = []
     for path in target_paths:
         targets.append(path_to_collection_or_object(session, pwcoll, path))
     for target in targets:
-        print_stat_any(target)
+        sysmeta_print_any(target)
 
 
-def ccoll (session, pwcoll, target, initial, previous):
+def cd (session, pwcoll, target, initial, previous):
     if target is None:
         return initial
     elif target == '-':
@@ -136,7 +135,7 @@ def path_to_data_object (session, pwcoll, path):
     return session.data_objects.get(str(resolve(pathlib.PurePosixPath(pwcoll.path) / path)))
 
 
-def list_ (session, pwcoll, target_paths, classify=False, sort=False):
+def ls (session, pwcoll, target_paths, classify=False, sort=False):
     header = None
     first = True
     target_colls = []
@@ -160,18 +159,17 @@ def list_ (session, pwcoll, target_paths, classify=False, sort=False):
     for coll in target_colls:
         if len(target_paths) > 1:
             header = coll.path
-        list_print_collection(session, coll, classify=classify, sort=sort, header=header, first=first)
+        ls_print_collection(session, coll, classify=classify, sort=sort, header=header, first=first)
         first = False
 
 
-def list_print_collection (session, collection, classify=False, sort=False, header=None, first=False):
+def ls_print_collection (session, collection, classify=False, sort=False, header=None, first=False):
     if header is not None:
         if not first:
             print()
         print('{}:'.format(header))
     for each in iter_any(collection.subcollections, collection.data_objects, sort=sort):
         print(format_any(each, classify=classify))
-
 
 
 def iter_any (collections, data_objects, sort=False):
@@ -188,24 +186,20 @@ def format_any (something, classify=False):
         return format_data_object(something)
 
 
-def print_stat_any (something, classify=False):
+def sysmeta_print_any (something, classify=False):
     if isinstance(something, irods.collection.iRODSCollection):
-        print_stat_collection(something)
+        sysmeta_print_collection(something)
     elif isinstance(something, irods.data_object.iRODSDataObject):
-        return print_stat_data_object(something)
+        return sysmeta_print_data_object(something)
 
 
-def print_stat_collection (collection):
+def sysmeta_print_collection (collection):
     print('id: {}'.format(collection.id))
     print('name: {}'.format(collection.name))
     print('path: {}'.format(collection.path))
-    print('subcollections: {}'.format(len(collection.subcollections)))
-    print('metadata:')
-    for key, value in collection.metadata.items():
-        print('- {}: {}'.format(key, value))
 
 
-def print_stat_data_object (data_object):
+def sysmeta_print_data_object (data_object):
     print('id: {}'.format(data_object.id))
     print(dir(data_object))
 
