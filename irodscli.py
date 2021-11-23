@@ -18,33 +18,35 @@ DEFAULT_PORT = 1247
 REPLICA_STATUS = {'0': 'stale', '1': 'good', '2': 'intermediate'}
 
 
+script_parser = argparse.ArgumentParser()
+script_parser.add_argument('url')
+
+cli_parser = argparse.ArgumentParser(prog=None, exit_on_error=False)
+cli_subparsers = cli_parser.add_subparsers(dest='subcommand_alias')
+
+ls_parser = cli_subparsers.add_parser('ls', aliases=['ils'])
+ls_parser.add_argument('targets', nargs='*')
+ls_parser.add_argument('-F', '--classify', action='store_true', default=False)
+ls_parser.add_argument('--sort', action='store_true', default=True)
+ls_parser.add_argument('-f', '--no-sort', action='store_false', dest='sort')
+ls_parser.set_defaults(subcommand='ls')
+
+cd_parser = cli_subparsers.add_parser('cd', aliases=['icd'])
+cd_parser.add_argument('target', nargs='?')
+cd_parser.set_defaults(subcommand='cd')
+
+pwd_parser = cli_subparsers.add_parser('pwd', aliases=['ipwd'])
+pwd_parser.set_defaults(subcommand='pwd')
+
+sysmeta_parser = cli_subparsers.add_parser('sysmeta', aliases=['isysmeta', 'stat'])
+sysmeta_parser.add_argument('targets', nargs='*')
+sysmeta_parser.set_defaults(subcommand='sysmeta')
+
+exit_parser = cli_subparsers.add_parser('exit', aliases=['iexit'])
+exit_parser.set_defaults(subcommand='exit')
+
+
 def main ():
-    script_parser = argparse.ArgumentParser()
-    script_parser.add_argument('url')
-
-    cli_parser = argparse.ArgumentParser(prog=None, exit_on_error=False)
-    cli_subparsers = cli_parser.add_subparsers(dest='subcommand_alias')
-
-    ls_parser = cli_subparsers.add_parser('ls', aliases=['ils'])
-    ls_parser.add_argument('targets', nargs='*')
-    ls_parser.add_argument('-F', '--classify', action='store_true', default=False)
-    ls_parser.add_argument('--sort', action='store_true', default=True)
-    ls_parser.add_argument('-f', '--no-sort', action='store_false', dest='sort')
-    ls_parser.set_defaults(subcommand='ls')
-
-    cd_parser = cli_subparsers.add_parser('cd', aliases=['icd'])
-    cd_parser.add_argument('target', nargs='?')
-    cd_parser.set_defaults(subcommand='cd')
-
-    pwd_parser = cli_subparsers.add_parser('pwd', aliases=['ipwd'])
-    pwd_parser.set_defaults(subcommand='pwd')
-
-    sysmeta_parser = cli_subparsers.add_parser('sysmeta', aliases=['isysmeta', 'stat'])
-    sysmeta_parser.add_argument('targets', nargs='*')
-    sysmeta_parser.set_defaults(subcommand='sysmeta')
-
-    exit_parser = cli_subparsers.add_parser('exit', aliases=['iexit'])
-    exit_parser.set_defaults(subcommand='exit')
 
     script_args = script_parser.parse_args()
     url = urllib.parse.urlparse(script_args.url)
