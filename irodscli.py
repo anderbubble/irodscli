@@ -15,6 +15,7 @@ import urllib.parse
 
 
 DEFAULT_PORT = 1247
+REPLICA_STATUS = {'0': 'stale', '1': 'good', '2': 'intermediate'}
 
 
 def main ():
@@ -201,11 +202,29 @@ def sysmeta_print_collection (collection):
     print('id: {}'.format(collection.id))
     print('name: {}'.format(collection.name))
     print('path: {}'.format(collection.path))
+    print('subcollections: {}'.format(len(collection.subcollections)))
 
 
 def sysmeta_print_data_object (data_object):
-    print('id: {}'.format(data_object.id))
-    print(dir(data_object))
+    print('path:', data_object.path)
+    print('name:', data_object.name)
+    print('id:', data_object.id)
+    print('owner: {}@{}'.format(data_object.owner_name, data_object.owner_zone))
+    print('size:', data_object.size)
+    print('checksum:', data_object.checksum)
+    print('collection:', data_object.collection_id)
+    print('comments:', data_object.comments)
+    print('create:', data_object.create_time)
+    print('modify:', data_object.modify_time)
+    print('expiry:', data_object.expiry)
+    print('replica:', data_object.replica_number)
+    print('replica status: {} ({})'.format(data_object.replica_status, REPLICA_STATUS.get(data_object.replica_status, '?')))
+    print('replicas:', len(data_object.replicas))
+    print('resource hierarchy:', data_object.resc_hier)
+    print('resource: {} ({})'.format(data_object.resc_id, data_object.resource_name))
+    print('status:', data_object.status)
+    print('type:', data_object.type)
+    print('version:', data_object.version)
 
 
 def format_collection (collection, classify=False):
