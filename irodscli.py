@@ -56,9 +56,13 @@ def main ():
 
     password = url.password
     if password is None:
-        password = os.environ.get('IRODS_PASSWORD')
+        password = os.environ.get('IRODS_PASSWORD') or None
     if password is None:
-        password = getpass.getpass()
+        try:
+            password = getpass.getpass()
+        except KeyboardInterrupt:
+            sys.stderr.write(os.linesep)
+            sys.exit(-1)
 
     with irods.session.iRODSSession(
         host=url.hostname,
@@ -71,12 +75,12 @@ def main ():
             pwcoll = previous_collection = initial_collection = session.collections.get(str(resolve(pathlib.PurePosixPath(url.path))))
         except irods.exception.CollectionDoesNotExist:
             print('{}: collection does not exist: {}'.format(script_parser.prog, url.path), file=sys.stderr)
-            sys.exit()
+            sys.exit(-1)
         while True:
             try:
                 input_args = shlex.split(input(prompt(user, pwcoll.path)))
             except EOFError:
-                sys.stdout.write(os.linesep)
+                sys.stderr.write(os.linesep)
                 sys.exit()
             try:
                 cli_args = cli_parser.parse_args(input_args)
