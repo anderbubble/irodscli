@@ -53,7 +53,7 @@ def main ():
             print('{}: collection does not exist: {}'.format(script_parser.prog, url.path), file=sys.stderr)
             sys.exit(-1)
         while True:
-            if script_args.subcommand:
+            if hasattr(script_args, 'subcommand'):
                 cli_args = script_args
             else:
                 try:
@@ -78,7 +78,7 @@ def main ():
                 sys.exit()
             elif cli_args.subcommand == 'sysmeta':
                 sysmeta(session, pwcoll, cli_args.targets)
-            if script_args.subcommand:
+            if hasattr(script_args, 'subcommand'):
                 break
 
 
