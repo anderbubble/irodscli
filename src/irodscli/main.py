@@ -89,6 +89,9 @@ def main ():
                 sys.exit()
             elif cli_args.subcommand == 'sysmeta':
                 sysmeta(session, pwd, cli_args.targets)
+            elif cli_args.subcommand == 'chksum':
+                chksum = irodscli.util.resolve_data_object(session, pwd, cli_args.target).chksum()
+                print(cli_args.target, chksum)
             if hasattr(script_args, 'subcommand'):
                 break
 

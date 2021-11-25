@@ -4,26 +4,33 @@ import argparse
 def script_parser ():
     script_parser = argparse.ArgumentParser()
     script_parser.add_argument('--url')
-    cli_subparsers = script_parser.add_subparsers(dest='subcommand_alias')
-    _add_ls_parser(cli_subparsers)
-    _add_cd_parser(cli_subparsers)
-    _add_sysmeta_parser(cli_subparsers)
-    _add_put_parser(cli_subparsers)
-    _add_get_parser(cli_subparsers)
-    _add_exit_parser(cli_subparsers)
+    cli_subparsers = _add_cli_subparsers(script_parser)
     return script_parser
 
 
 def cli_parser ():
     cli_parser = argparse.ArgumentParser(prog=None, exit_on_error=False)
-    cli_subparsers = cli_parser.add_subparsers(dest='subcommand_alias')
+    cli_subparsers = _add_cli_subparsers(cli_parser)
+    return cli_parser
+
+
+def _add_cli_subparsers (parser):
+    cli_subparsers = parser.add_subparsers(dest='subcommand_alias')
     _add_ls_parser(cli_subparsers)
     _add_cd_parser(cli_subparsers)
     _add_sysmeta_parser(cli_subparsers)
     _add_put_parser(cli_subparsers)
     _add_get_parser(cli_subparsers)
+    _add_chksum(cli_subparsers)
     _add_exit_parser(cli_subparsers)
-    return cli_parser
+    return cli_subparsers
+
+
+def _add_chksum (subparsers):
+    chksum_parser = subparsers.add_parser('chksum', aliases=['ichksum'])
+    chksum_parser.add_argument('target')
+    chksum_parser.set_defaults(subcommand='chksum')
+    return chksum_parser
 
 
 def _add_ls_parser (subparsers):
