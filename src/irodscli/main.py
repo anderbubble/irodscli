@@ -1,5 +1,3 @@
-#!/usr/bin/env python3
-
 import argparse
 import getpass
 import irods.collection
@@ -233,7 +231,3 @@ def resolve (path):
         else:
             resolved_path = resolved_path / part
     return resolved_path
-
-
-if __name__ == '__main__':
-    main()
