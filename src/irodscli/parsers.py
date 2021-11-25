@@ -21,16 +21,25 @@ def _add_cli_subparsers (parser):
     _add_sysmeta_parser(cli_subparsers)
     _add_put_parser(cli_subparsers)
     _add_get_parser(cli_subparsers)
-    _add_chksum(cli_subparsers)
+    _add_chksum_parser(cli_subparsers)
+    _add_rm_parser(cli_subparsers)
     _add_exit_parser(cli_subparsers)
     return cli_subparsers
 
 
-def _add_chksum (subparsers):
+def _add_chksum_parser (subparsers):
     chksum_parser = subparsers.add_parser('chksum', aliases=['ichksum'])
     chksum_parser.add_argument('target')
     chksum_parser.set_defaults(subcommand='chksum')
     return chksum_parser
+
+
+def _add_rm_parser (subparsers):
+    rm_parser = subparsers.add_parser('rm', aliases=['irm'])
+    rm_parser.add_argument('target')
+    rm_parser.add_argument('--force', action='store_true')
+    rm_parser.set_defaults(subcommand='rm', force=False)
+    return rm_parser
 
 
 def _add_ls_parser (subparsers):

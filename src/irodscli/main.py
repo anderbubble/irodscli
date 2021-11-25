@@ -92,6 +92,8 @@ def main ():
             elif cli_args.subcommand == 'chksum':
                 chksum = irodscli.util.resolve_data_object(session, pwd, cli_args.target).chksum()
                 print(cli_args.target, chksum)
+            elif cli_args.subcommand == 'rm':
+                irodscli.util.resolve_data_object(session, pwd, cli_args.target).unlink(force=cli_args.force)
             if hasattr(script_args, 'subcommand'):
                 break
 
