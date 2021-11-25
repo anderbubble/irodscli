@@ -64,6 +64,8 @@ def main ():
                 except argparse.ArgumentError:
                     print('unknown command: {}'.format(input_args[0]))
                     continue
+                if not hasattr(cli_args, 'subcommand'):
+                    continue
             if cli_args.subcommand == 'ls':
                 ls(session, pwcoll, cli_args.targets, classify=cli_args.classify, sort=cli_args.sort)
             elif cli_args.subcommand == 'cd':
