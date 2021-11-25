@@ -46,7 +46,7 @@ def main ():
         zone=zone
     ) as session:
         try:
-            pwcoll = previous_collection = initial_collection = session.collections.get(str(resolve(pathlib.PurePosixPath(url.path))))
+            pwd = prevd = startd = session.collections.get(str(resolve(pathlib.PurePosixPath(url.path))))
         except irods.exception.CollectionDoesNotExist:
             print('{}: collection does not exist: {}'.format(script_parser.prog, url.path), file=sys.stderr)
             sys.exit(-1)
@@ -55,7 +55,7 @@ def main ():
                 cli_args = script_args
             else:
                 try:
-                    input_args = shlex.split(input(prompt(user, pwcoll.path)))
+                    input_args = shlex.split(input(prompt(user, pwd.path)))
                 except EOFError:
                     sys.stderr.write(os.linesep)
                     sys.exit()
@@ -67,60 +67,95 @@ def main ():
                 if not hasattr(cli_args, 'subcommand'):
                     continue
             if cli_args.subcommand == 'ls':
-                ls(session, pwcoll, cli_args.targets, classify=cli_args.classify, sort=cli_args.sort)
+                ls(session, pwd, cli_args.targets, classify=cli_args.classify, sort=cli_args.sort)
             elif cli_args.subcommand == 'cd':
-                target_collection = cd(session, pwcoll, cli_args.target, initial_collection, previous_collection)
-                if target_collection is not None:
-                    pwcoll, previous_collection = target_collection, pwcoll
+                targetd = cd(session, pwd, cli_args.target, startd, prevd)
+                if targetd is not None:
+                    pwd, prevd = targetd, pwd
             elif cli_args.subcommand == 'pwd':
-                print(pwcoll.path)
+                print(pwd.path)
+            elif cli_args.subcommand == 'get':
+                get(session, pwd, cli_args.remote_path, cli_args.local_path, force=cli_args.force, verbose=cli_args.force)
+            elif cli_args.subcommand == 'put':
+                put(session, pwd, cli_args.local_path, cli_args.remote_path, verbose=cli_args.verbose)
             elif cli_args.subcommand == 'exit':
                 sys.exit()
             elif cli_args.subcommand == 'sysmeta':
-                sysmeta(session, pwcoll, cli_args.targets)
+                sysmeta(session, pwd, cli_args.targets)
             if hasattr(script_args, 'subcommand'):
                 break
 
 
-def sysmeta (session, pwcoll, target_paths):
+def get (session, pwd, remote_path, local_path, force=False, verbose=False):
+    options = {}
+    if force:
+        options[irods.keywords.FORCE_FLAG_KW] = ''
+    full_remote_path = str(pathlib.PurePosixPath(pwd.path) / remote_path)
+    try:
+        data_object = session.data_objects.get(full_remote_path, local_path, **options)
+    except irods.exception.OVERWRITE_WITHOUT_FORCE_FLAG:
+        print('{} already exists. Use --force to overwrite.'.format(local_path), file=sys.stderr)
+    else:
+        if verbose:
+            print('{} -> {}'.format(data_object.path, remote_path), file=sys.stderr)
+
+
+def put (session, pwd, local_path, remote_path, force=False, verbose=False):
+    options = {}
+    # BUG: python-irodsclient will overwrite without force
+    if force:
+        options[irods.keywords.FORCE_FLAG_KW] = ''
+    full_remote_path = str(pathlib.PurePosixPath(pwd.path) / remote_path)
+    try:
+        session.data_objects.put(local_path, full_remote_path)
+    except irods.exception.OVERWRITE_WITHOUT_FORCE_FLAG:
+        print('{} already exists. Use --force to overwrite.'.format(remote_path), file=sys.stderr)
+    else:
+        if verbose:
+            print('{} -> {}'.format(local_path, remote_path), file=sys.stderr)
+
+
+def sysmeta (session, pwd, target_paths):
     targets = []
     for path in target_paths:
-        targets.append(path_to_collection_or_object(session, pwcoll, path))
+        targets.append(path_to_collection_or_object(session, pwd, path))
     for target in targets:
         sysmeta_print_any(target)
 
 
-def cd (session, pwcoll, target, initial, previous):
+def cd (session, pwd, target, initial, prevd):
     if target is None:
         return initial
     elif target == '-':
-        return previous
+        return prevd
     else:
         try:
-            target_collection = session.collections.get(str(resolve(pathlib.PurePosixPath(pwcoll.path) / target)))
+            targetd = session.collections.get(str(resolve(pathlib.PurePosixPath(pwd.path) / target)))
         except irods.exception.CollectionDoesNotExist:
             print('ccoll: collection does not exist: {}'.format(target), file=sys.stderr)
             return None
         else:
-            return target_collection
+            return targetd
 
 
-def path_to_collection_or_object (session, pwcoll, path):
+def path_to_collection_or_object (session, pwd, path):
+    if isinstance(path, (irods.data_object.iRODSDataObject, irods.collection.iRODSCollection)):
+        return path
     try:
-        return path_to_collection(session, pwcoll, path)
+        return path_to_collection(session, pwd, path)
     except irods.exception.CollectionDoesNotExist:
-        return path_to_data_object(session, pwcoll, path)
+        return path_to_data_object(session, pwd, path)
 
 
-def path_to_collection (session, pwcoll, path):
-    return session.collections.get(str(resolve(pathlib.PurePosixPath(pwcoll.path) / path)))
+def path_to_collection (session, pwd, path):
+    return session.collections.get(str(resolve(pathlib.PurePosixPath(pwd.path) / path)))
 
 
-def path_to_data_object (session, pwcoll, path):
-    return session.data_objects.get(str(resolve(pathlib.PurePosixPath(pwcoll.path) / path)))
+def path_to_data_object (session, pwd, path):
+    return session.data_objects.get(str(resolve(pathlib.PurePosixPath(pwd.path) / path)))
 
 
-def ls (session, pwcoll, target_paths, classify=False, sort=False):
+def ls (session, pwd, target_paths, classify=False, sort=False):
     header = None
     first = True
     target_colls = []
@@ -128,17 +163,17 @@ def ls (session, pwcoll, target_paths, classify=False, sort=False):
     target_object_paths = []
     for path in target_paths:
         try:
-            target_colls.append(path_to_collection(session, pwcoll, path))
+            target_colls.append(path_to_collection(session, pwd, path))
         except irods.exception.CollectionDoesNotExist:
             try:
-                target_objects.append(path_to_data_object(session, pwcoll, path))
+                target_objects.append(path_to_data_object(session, pwd, path))
             except irods.exception.DataObjectDoesNotExist:
                 print('list: collection or data object does not exist: {}'.format(path), file=sys.stderr)
                 continue
             else:
                 target_object_paths.append(path)
     if not target_paths:
-        target_colls.append(pwcoll)
+        target_colls.append(pwd)
     for data_object, data_object_path in zip(target_objects, target_object_paths):
         print(data_object_path)
     for coll in target_colls:

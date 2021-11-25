@@ -8,6 +8,8 @@ def script_parser ():
     _add_ls_parser(cli_subparsers)
     _add_cd_parser(cli_subparsers)
     _add_sysmeta_parser(cli_subparsers)
+    _add_put_parser(cli_subparsers)
+    _add_get_parser(cli_subparsers)
     _add_exit_parser(cli_subparsers)
     return script_parser
 
@@ -18,6 +20,8 @@ def cli_parser ():
     _add_ls_parser(cli_subparsers)
     _add_cd_parser(cli_subparsers)
     _add_sysmeta_parser(cli_subparsers)
+    _add_put_parser(cli_subparsers)
+    _add_get_parser(cli_subparsers)
     _add_exit_parser(cli_subparsers)
     return cli_parser
 
@@ -30,6 +34,23 @@ def _add_ls_parser (subparsers):
     ls_parser.add_argument('-f', '--no-sort', action='store_false', dest='sort')
     ls_parser.set_defaults(subcommand='ls')
     return ls_parser
+
+
+def _add_put_parser (subparsers):
+    put_parser = subparsers.add_parser('put', aliases=['iput'])
+    put_parser.add_argument('local_path')
+    put_parser.add_argument('remote_path')
+    put_parser.add_argument('--verbose', action='store_true')
+    put_parser.set_defaults(subcommand='put', verbose=False)
+
+
+def _add_get_parser (subparsers):
+    get_parser = subparsers.add_parser('get', aliases=['iget'])
+    get_parser.add_argument('remote_path')
+    get_parser.add_argument('local_path')
+    get_parser.add_argument('--force', action='store_true')
+    get_parser.add_argument('--verbose', action='store_true')
+    get_parser.set_defaults(subcommand='get', force=False, verbose=False)
 
 
 def _add_cd_parser (subparsers):
