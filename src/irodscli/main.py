@@ -20,7 +20,14 @@ REPLICA_STATUS = {'0': 'stale', '1': 'good', '2': 'intermediate'}
 
 def main ():
     script_args = irodscli.parsers.script_parser().parse_args()
-    url = urllib.parse.urlparse(script_args.url)
+    url = script_args.url
+    if url is None:
+        try:
+            url = os.environ['IRODS_URL']
+        except KeyError:
+            print('--url or IRODS_URL required', file=sys.stderr)
+            sys.exit(-1)
+    url = urllib.parse.urlparse(url)
 
     zone = pathlib.PurePosixPath(url.path).parts[1]
 

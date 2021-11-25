@@ -3,7 +3,7 @@ import argparse
 
 def script_parser ():
     script_parser = argparse.ArgumentParser()
-    script_parser.add_argument('url')
+    script_parser.add_argument('--url')
     cli_subparsers = script_parser.add_subparsers(dest='subcommand_alias')
     _add_ls_parser(cli_subparsers)
     _add_cd_parser(cli_subparsers)
