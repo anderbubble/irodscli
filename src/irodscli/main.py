@@ -53,7 +53,7 @@ def main ():
         zone=zone
     ) as session:
         try:
-            pwd = prevd = startd = session.collections.get(str(resolve(pathlib.PurePosixPath(url.path))))
+            pwd = prevd = startd = session.collections.get(resolve_path(url.path))
         except irods.exception.CollectionDoesNotExist:
             print('{}: collection does not exist: {}'.format(script_parser.prog, url.path), file=sys.stderr)
             sys.exit(-1)
@@ -97,9 +97,8 @@ def get (session, pwd, remote_path, local_path, force=False, verbose=False):
     options = {}
     if force:
         options[irods.keywords.FORCE_FLAG_KW] = ''
-    full_remote_path = str(pathlib.PurePosixPath(pwd.path) / remote_path)
     try:
-        data_object = session.data_objects.get(full_remote_path, local_path, **options)
+        data_object = session.data_objects.get(resolve_path(remote_path, pwd), local_path, **options)
     except irods.exception.OVERWRITE_WITHOUT_FORCE_FLAG:
         print('{} already exists. Use --force to overwrite.'.format(local_path), file=sys.stderr)
     else:
@@ -107,14 +106,28 @@ def get (session, pwd, remote_path, local_path, force=False, verbose=False):
             print('{} -> {}'.format(data_object.path, remote_path), file=sys.stderr)
 
 
+def resolve_path (path, pwd=None):
+    path = pathlib.PurePosixPath(path)
+    if pwd:
+        if isinstance(pwd, (irods.collection.iRODSCollection, irods.data_object.iRODSDataObject)):
+            pwd = pwd.path
+        path = pathlib.PurePosixPath(pwd) / path
+    resolved_path = pathlib.PurePosixPath(path.parts[0])
+    for part in path.parts[1:]:
+        if part == '..':
+            resolved_path = resolved_path.parent
+        else:
+            resolved_path = resolved_path / part
+    return str(resolved_path)
+
+
 def put (session, pwd, local_path, remote_path, force=False, verbose=False):
     options = {}
     # BUG: python-irodsclient will overwrite without force
     if force:
         options[irods.keywords.FORCE_FLAG_KW] = ''
-    full_remote_path = str(pathlib.PurePosixPath(pwd.path) / remote_path)
     try:
-        session.data_objects.put(local_path, full_remote_path)
+        session.data_objects.put(local_path, resolve_path(pwd, remote_path))
     except irods.exception.OVERWRITE_WITHOUT_FORCE_FLAG:
         print('{} already exists. Use --force to overwrite.'.format(remote_path), file=sys.stderr)
     else:
@@ -125,7 +138,7 @@ def put (session, pwd, local_path, remote_path, force=False, verbose=False):
 def sysmeta (session, pwd, target_paths):
     targets = []
     for path in target_paths:
-        targets.append(path_to_collection_or_object(session, pwd, path))
+        targets.append(resolve_irods(session, pwd, path))
     for target in targets:
         sysmeta_print_any(target)
 
@@ -137,7 +150,7 @@ def cd (session, pwd, target, initial, prevd):
         return prevd
     else:
         try:
-            targetd = session.collections.get(str(resolve(pathlib.PurePosixPath(pwd.path) / target)))
+            targetd = session.collections.get(resolve_path(target, pwd))
         except irods.exception.CollectionDoesNotExist:
             print('ccoll: collection does not exist: {}'.format(target), file=sys.stderr)
             return None
@@ -145,21 +158,21 @@ def cd (session, pwd, target, initial, prevd):
             return targetd
 
 
-def path_to_collection_or_object (session, pwd, path):
-    if isinstance(path, (irods.data_object.iRODSDataObject, irods.collection.iRODSCollection)):
-        return path
+def resolve_irods (session, pwd, target):
+    if isinstance(target, (irods.data_object.iRODSDataObject, irods.collection.iRODSCollection)):
+        return target
     try:
-        return path_to_collection(session, pwd, path)
+        return resolve_collection(session, pwd, target)
     except irods.exception.CollectionDoesNotExist:
-        return path_to_data_object(session, pwd, path)
+        return resolve_data_object(session, pwd, target)
 
 
-def path_to_collection (session, pwd, path):
-    return session.collections.get(str(resolve(pathlib.PurePosixPath(pwd.path) / path)))
+def resolve_collection (session, pwd, target):
+    return session.collections.get(resolve_path(target, pwd))
 
 
-def path_to_data_object (session, pwd, path):
-    return session.data_objects.get(str(resolve(pathlib.PurePosixPath(pwd.path) / path)))
+def resolve_data_object (session, pwd, target):
+    return session.data_objects.get(resolve_path(target, pwd))
 
 
 def ls (session, pwd, target_paths, classify=False, sort=False):
@@ -170,10 +183,10 @@ def ls (session, pwd, target_paths, classify=False, sort=False):
     target_object_paths = []
     for path in target_paths:
         try:
-            target_colls.append(path_to_collection(session, pwd, path))
+            target_colls.append(resolve_collection(session, pwd, path))
         except irods.exception.CollectionDoesNotExist:
             try:
-                target_objects.append(path_to_data_object(session, pwd, path))
+                target_objects.append(resolve_data_object(session, pwd, path))
             except irods.exception.DataObjectDoesNotExist:
                 print('list: collection or data object does not exist: {}'.format(path), file=sys.stderr)
                 continue
@@ -265,13 +278,3 @@ def prompt (user, path):
         return '{}@{}$ '.format(user, path)
     else:
         return ''
-
-
-def resolve (path):
-    resolved_path = pathlib.PurePosixPath(path.parts[0])
-    for part in path.parts[1:]:
-        if part == '..':
-            resolved_path = resolved_path.parent
-        else:
-            resolved_path = resolved_path / part
-    return resolved_path
