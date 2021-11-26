@@ -54,4 +54,16 @@ def cli_parser ():
     exit_parser = cli_subparsers.add_parser('exit', aliases=['iexit'])
     exit_parser.set_defaults(subcommand='exit')
 
+    mkdir_parser = cli_subparsers.add_parser('mkdir', aliases=['imkdir'])
+    mkdir_parser.add_argument('target')
+    mkdir_parser.add_argument('--verbose', action='store_true')
+    mkdir_parser.set_defaults(subcommand='mkdir', verbose=False)
+
+    rmdir_parser = cli_subparsers.add_parser('rmdir', aliases=['irmdir'])
+    rmdir_parser.add_argument('target')
+    rmdir_parser.add_argument('--verbose', action='store_true')
+    rmdir_parser.add_argument('--recursive', action='store_true')
+    rmdir_parser.add_argument('--force', action='store_true')
+    rmdir_parser.set_defaults(subcommand='rmdir', verbose=False, recursive=False, force=False)
+
     return cli_parser

@@ -94,6 +94,18 @@ def main ():
                 print(cli_args.target, chksum)
             elif cli_args.subcommand == 'rm':
                 irodscli.util.resolve_data_object(session, pwd, cli_args.target).unlink(force=cli_args.force)
+            elif cli_args.subcommand == 'mkdir':
+                collection = session.collections.create(irodscli.util.resolve_path(cli_args.target, pwd))
+                if cli_args.verbose:
+                    print(collection.path, file=sys.stderr)
+            elif cli_args.subcommand == 'rmdir':
+                collection = irodscli.util.resolve_collection(session, pwd, cli_args.target)
+                try:
+                    collection.remove(recurse=cli_args.recursive, force=cli_args.force)
+                except irods.exception.CAT_COLLECTION_NOT_EMPTY:
+                    print('cannot remove {}: not empty'.format(collection.path))
+                if cli_args.verbose:
+                    print(collection.path, file=sys.stderr)
             if hasattr(script_args, 'subcommand'):
                 break
 
@@ -117,7 +129,7 @@ def put (session, pwd, local_path, remote_path, force=False, verbose=False):
     if force:
         options[irods.keywords.FORCE_FLAG_KW] = ''
     try:
-        session.data_objects.put(local_path, irodscli.util.resolve_path(pwd, remote_path))
+        session.data_objects.put(local_path, irodscli.util.resolve_path(remote_path, pwd))
     except irods.exception.OVERWRITE_WITHOUT_FORCE_FLAG:
         print('{} already exists. Use --force to overwrite.'.format(remote_path), file=sys.stderr)
     else:
