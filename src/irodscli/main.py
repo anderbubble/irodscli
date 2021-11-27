@@ -6,6 +6,7 @@ import irods.exception
 import irods.session
 import os
 import pathlib
+import readline
 import shlex
 import sys
 import urllib.parse
