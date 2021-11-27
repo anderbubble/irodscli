@@ -63,7 +63,7 @@ def main ():
             print('{}: authentication failed'.format(script_parser.prog, file=sys.stderr))
             sys.exit(-1)
         if hasattr(script_args, 'subcommand'):
-            do_subcommand(session, pwd, script_args)
+            do_subcommand(session, pwd, startd, prevd, script_args)
         else:
             cli_parser = irodscli.parsers.cli_parser()
             while True:
@@ -81,12 +81,12 @@ def main ():
                     continue
                 if not hasattr(cli_args, 'subcommand'):
                     continue
-                new_pwd = do_subcommand(session, pwd, cli_args)
+                new_pwd = do_subcommand(session, pwd, startd, prevd, cli_args)
                 if new_pwd is not None:
                     pwd, prevd = new_pwd, pwd
 
 
-def do_subcommand (session, pwd, args):
+def do_subcommand (session, pwd, startd, prevd, args):
     new_pwd = None
 
     if args.subcommand == 'ls':
