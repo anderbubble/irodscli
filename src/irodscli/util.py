@@ -38,7 +38,7 @@ def resolve_data_object (session, pwd, target):
 
 
 def chain (*args, sort=False):
-    iter_ = itertools.chain(*args, data_objects)
+    iter_ = itertools.chain(*args)
     if sort:
         iter_ = sorted(iter_, key=lambda something: something.name)
     return iter_
