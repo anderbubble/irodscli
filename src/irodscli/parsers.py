@@ -8,7 +8,7 @@ def script_parser ():
 
 
 def cli_parser ():
-    parser = argparse.ArgumentParser(prog=None, exit_on_error=False, add_help=False)
+    parser = argparse.ArgumentParser(prog=None, add_help=False)
     subparsers = parser.add_subparsers(dest='subcommand_alias')
 
     chksum = subparsers.add_parser('chksum', aliases=['ichksum'])

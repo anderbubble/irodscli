@@ -57,27 +57,28 @@ def main ():
         except irods.exception.CollectionDoesNotExist:
             print('{}: collection does not exist: {}'.format(irodscli.parsers.script_parser.prog, url.path), file=sys.stderr)
             sys.exit(-1)
-        while True:
-            if hasattr(script_args, 'subcommand'):
-                cli_args = script_args
-            else:
+        if hasattr(script_args, 'subcommand'):
+            do_subcommand(session, pwd, script_args)
+        else:
+            cli_parser = irodscli.parsers.cli_parser()
+            while True:
                 try:
                     input_args = shlex.split(input(prompt(user, pwd.path)))
                 except EOFError:
                     sys.stderr.write(os.linesep)
                     sys.exit()
                 try:
-                    cli_args = irodscli.parsers.cli_parser().parse_args(input_args)
+                    cli_args = cli_parser.parse_args(input_args)
                 except argparse.ArgumentError:
                     print('unknown command: {}'.format(input_args[0]))
+                    continue
+                except SystemExit:
                     continue
                 if not hasattr(cli_args, 'subcommand'):
                     continue
                 new_pwd = do_subcommand(session, pwd, cli_args)
                 if new_pwd is not None:
                     pwd, prevd = new_pwd, pwd
-            if hasattr(script_args, 'subcommand'):
-                break
 
 
 def do_subcommand (session, pwd, args):
