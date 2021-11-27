@@ -37,8 +37,8 @@ def resolve_data_object (session, pwd, target):
     return session.data_objects.get(resolve_path(target, pwd))
 
 
-def iter_any (collections, data_objects, sort=False):
-    iter_ = itertools.chain(collections, data_objects)
+def chain (*args, sort=False):
+    iter_ = itertools.chain(*args, data_objects)
     if sort:
         iter_ = sorted(iter_, key=lambda something: something.name)
     return iter_

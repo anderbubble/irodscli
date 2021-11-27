@@ -73,41 +73,66 @@ def main ():
                     continue
                 if not hasattr(cli_args, 'subcommand'):
                     continue
-            if cli_args.subcommand == 'ls':
-                ls(session, pwd, cli_args.targets, classify=cli_args.classify, sort=cli_args.sort)
-            elif cli_args.subcommand == 'cd':
-                targetd = cd(session, pwd, cli_args.target, startd, prevd)
-                if targetd is not None:
-                    pwd, prevd = targetd, pwd
-            elif cli_args.subcommand == 'pwd':
-                print(pwd.path)
-            elif cli_args.subcommand == 'get':
-                get(session, pwd, cli_args.remote_path, cli_args.local_path, force=cli_args.force, verbose=cli_args.force)
-            elif cli_args.subcommand == 'put':
-                put(session, pwd, cli_args.local_path, cli_args.remote_path, verbose=cli_args.verbose)
-            elif cli_args.subcommand == 'exit':
-                sys.exit()
-            elif cli_args.subcommand == 'sysmeta':
-                sysmeta(session, pwd, cli_args.targets)
-            elif cli_args.subcommand == 'chksum':
-                chksum = irodscli.util.resolve_data_object(session, pwd, cli_args.target).chksum()
-                print(cli_args.target, chksum)
-            elif cli_args.subcommand == 'rm':
-                irodscli.util.resolve_data_object(session, pwd, cli_args.target).unlink(force=cli_args.force)
-            elif cli_args.subcommand == 'mkdir':
-                collection = session.collections.create(irodscli.util.resolve_path(cli_args.target, pwd))
-                if cli_args.verbose:
-                    print(collection.path, file=sys.stderr)
-            elif cli_args.subcommand == 'rmdir':
-                collection = irodscli.util.resolve_collection(session, pwd, cli_args.target)
-                try:
-                    collection.remove(recurse=cli_args.recursive, force=cli_args.force)
-                except irods.exception.CAT_COLLECTION_NOT_EMPTY:
-                    print('cannot remove {}: not empty'.format(collection.path))
-                if cli_args.verbose:
-                    print(collection.path, file=sys.stderr)
+                new_pwd = do_subcommand(session, pwd, cli_args)
+                if new_pwd is not None:
+                    pwd, prevd = new_pwd, pwd
             if hasattr(script_args, 'subcommand'):
                 break
+
+
+def do_subcommand (session, pwd, args):
+    new_pwd = None
+
+    if args.subcommand == 'ls':
+        ls(session, pwd, args.targets, classify=args.classify, sort=args.sort)
+    elif args.subcommand == 'cd':
+        new_pwd = cd(session, pwd, args.target, startd, prevd)
+    elif args.subcommand == 'pwd':
+        print(pwd.path)
+    elif args.subcommand == 'get':
+        get(session, pwd, args.remote_path, args.local_path, force=args.force, verbose=args.force)
+    elif args.subcommand == 'put':
+        put(session, pwd, args.local_path, args.remote_path, verbose=args.verbose)
+    elif args.subcommand == 'sysmeta':
+        sysmeta(session, pwd, args.targets)
+    elif args.subcommand == 'chksum':
+        chksum(session, pwd, args.target)
+    elif args.subcommand == 'rm':
+        rm(session, pwd, args.target, force=args.force)
+    elif args.subcommand == 'mkdir':
+        mkdir(session, pwd, args.target, verbose=args.verbose)
+    elif args.subcommand == 'rmdir':
+        rmdir(session, pwd, args.target, verbose=args.verbose)
+    elif args.subcommand == 'exit':
+        sys.exit()
+
+    return new_pwd
+
+
+def mkdir (session, pwd, target, verbose=False):
+    collection = session.collections.create(irodscli.util.resolve_path(target, pwd))
+    if verbose:
+        print(collection.path, file=sys.stderr)
+
+
+def rmdir (session, pwd, target, force=False, verbose=False):
+    collection = irodscli.util.resolve_collection(session, pwd, target)
+    try:
+        collection.remove(recurse=recursive, force=force)
+    except irods.exception.CAT_COLLECTION_NOT_EMPTY:
+        print('cannot remove {}: not empty'.format(collection.path))
+    if verbose:
+        print(collection.path, file=sys.stderr)
+
+
+def rm (session, pwd, target, force=False):
+    irodscli.util.resolve_data_object(session, pwd, target).unlink(force=force)
+
+
+def chksum (session, pwd, target):
+    data_object = irodscli.util.resolve_data_object(session, pwd, target)
+    chksum = data_object.chksum()
+    print(target, chksum)
 
 
 def get (session, pwd, remote_path, local_path, force=False, verbose=False):
@@ -193,7 +218,7 @@ def ls_print_collection (session, collection, classify=False, sort=False, header
         if not first:
             print()
         print('{}:'.format(header))
-    for each in irodscli.util.iter_any(collection.subcollections, collection.data_objects, sort=sort):
+    for each in irodscli.util.chain(collection.subcollections, collection.data_objects, sort=sort):
         print(format_any(each, classify=classify))
 
 
