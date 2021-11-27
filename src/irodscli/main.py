@@ -20,7 +20,8 @@ REPLICA_STATUS = {'0': 'stale', '1': 'good', '2': 'intermediate'}
 
 
 def main ():
-    script_args = irodscli.parsers.script_parser().parse_args()
+    script_parser = irodscli.parsers.script_parser()
+    script_args = script_parser.parse_args()
     url = script_args.url
     if url is None:
         try:
@@ -56,7 +57,10 @@ def main ():
         try:
             pwd = prevd = startd = session.collections.get(irodscli.util.resolve_path(url.path))
         except irods.exception.CollectionDoesNotExist:
-            print('{}: collection does not exist: {}'.format(irodscli.parsers.script_parser.prog, url.path), file=sys.stderr)
+            print('{}: collection does not exist: {}'.format(script_parser.prog, url.path), file=sys.stderr)
+            sys.exit(-1)
+        except irods.exception.CAT_INVALID_AUTHENTICATION:
+            print('{}: authentication failed'.format(script_parser.prog, file=sys.stderr))
             sys.exit(-1)
         if hasattr(script_args, 'subcommand'):
             do_subcommand(session, pwd, script_args)
