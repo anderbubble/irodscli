@@ -13,7 +13,8 @@ def cli_parser ():
 
     chksum = subparsers.add_parser('chksum', aliases=['ichksum'])
     chksum.add_argument('target')
-    chksum.set_defaults(subcommand='chksum')
+    chksum.add_argument('--hex', action='store_true')
+    chksum.set_defaults(subcommand='chksum', hex=False)
 
     rm = subparsers.add_parser('rm', aliases=['irm'])
     rm.add_argument('target')

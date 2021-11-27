@@ -1,4 +1,6 @@
 import argparse
+import base64
+import binascii
 import getpass
 import irods.collection
 import irods.data_object
@@ -102,7 +104,7 @@ def do_subcommand (session, pwd, startd, prevd, args):
     elif args.subcommand == 'sysmeta':
         sysmeta(session, pwd, args.targets)
     elif args.subcommand == 'chksum':
-        chksum(session, pwd, args.target)
+        chksum(session, pwd, args.target, hex=args.hex)
     elif args.subcommand == 'rm':
         rm(session, pwd, args.target, force=args.force)
     elif args.subcommand == 'mkdir':
@@ -135,10 +137,12 @@ def rm (session, pwd, target, force=False):
     irodscli.util.resolve_data_object(session, pwd, target).unlink(force=force)
 
 
-def chksum (session, pwd, target):
+def chksum (session, pwd, target, hex=False):
     data_object = irodscli.util.resolve_data_object(session, pwd, target)
     chksum = data_object.chksum()
-    print(target, chksum)
+    if hex:
+        chksum = binascii.hexlify(base64.b64decode(chksum)).decode()
+    print('{}  {}'.format(chksum, target))
 
 
 def get (session, pwd, remote_path, local_path, force=False, verbose=False):
