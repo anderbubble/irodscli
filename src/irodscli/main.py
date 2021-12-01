@@ -110,7 +110,7 @@ def do_subcommand (session, pwd, startd, prevd, args):
     elif args.subcommand == 'mkdir':
         mkdir(session, pwd, args.target, verbose=args.verbose)
     elif args.subcommand == 'rmdir':
-        rmdir(session, pwd, args.target, verbose=args.verbose)
+        rmdir(session, pwd, args.target, verbose=args.verbose, force=args.force, recursive=args.recursive)
     elif args.subcommand == 'exit':
         sys.exit()
 
@@ -123,7 +123,7 @@ def mkdir (session, pwd, target, verbose=False):
         print(collection.path, file=sys.stderr)
 
 
-def rmdir (session, pwd, target, force=False, verbose=False):
+def rmdir (session, pwd, target, recursive=False, force=False, verbose=False):
     collection = irodscli.util.resolve_collection(session, pwd, target)
     try:
         collection.remove(recurse=recursive, force=force)
