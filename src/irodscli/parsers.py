@@ -30,7 +30,7 @@ def cli_parser ():
 
     put = subparsers.add_parser('put', aliases=['iput'])
     put.add_argument('local_path')
-    put.add_argument('remote_path')
+    put.add_argument('remote_path', nargs='?')
     put.add_argument('--verbose', action='store_true')
     put.set_defaults(subcommand='put', verbose=False)
 

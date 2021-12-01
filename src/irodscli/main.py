@@ -159,12 +159,44 @@ def get (session, pwd, remote_path, local_path, force=False, verbose=False):
 
 
 def put (session, pwd, local_path, remote_path, force=False, verbose=False):
+    if remote_path is None:
+        remote_path = pwd.path
+    else:
+        remote_path = irodscli.util.resolve_path(remote_path, pwd)
     options = {}
     # BUG: python-irodsclient will overwrite without force
     if force:
         options[irods.keywords.FORCE_FLAG_KW] = ''
+    if os.path.isdir(local_path):
+        try:
+            collection = irodscli.util.resolve_collection(session, pwd, os.path.basename(local_path))
+        except irods.exception.CollectionDoesNotExist:
+            pass
+        else:
+            print('collection already exists: {}'.format(collection.path))
+            sys.exit(-1)
+        for (dirpath, dirnames, filenames) in os.walk(local_path):
+            for dirname in dirnames:
+                src = irodscli.util.resolve_path(dirname, dirpath)
+                relsrc = os.path.relpath(src, os.path.dirname(local_path))
+                dest = irodscli.util.resolve_path(relsrc, remote_path)
+                collection = session.collections.create(dest)
+                if verbose:
+                    print('{} -> {}'.format(src, collection.path), file=sys.stderr)
+            for filename in filenames:
+                src = irodscli.util.resolve_path(filename, dirpath)
+                relsrc = os.path.relpath(src, os.path.dirname(local_path))
+                dest = irodscli.util.resolve_path(relsrc, remote_path)
+                try:
+                    session.data_objects.put(src, dest)
+                except irods.exception.OVERWRITE_WITHOUT_FORCE_FLAG:
+                    print('{} already exists. Use --force to overwrite.'.format(dest), file=sys.stderr)
+                else:
+                    if verbose:
+                        print('{} -> {}'.format(src, dest), file=sys.stderr)
+        return
     try:
-        session.data_objects.put(local_path, irodscli.util.resolve_path(remote_path, pwd))
+        session.data_objects.put(local_path, remote_path)
     except irods.exception.OVERWRITE_WITHOUT_FORCE_FLAG:
         print('{} already exists. Use --force to overwrite.'.format(remote_path), file=sys.stderr)
     else:
